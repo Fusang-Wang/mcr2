@@ -36,6 +36,7 @@ def gen_testloss(args):
     for epoch, ckpt_path in enumerate(ckpt_paths):
         net, epoch = tf.load_checkpoint(args.model_dir, epoch=epoch, eval_=True)
         for step, (batch_imgs, batch_lbls) in enumerate(testloader):
+            # batch_imgs = batch_imgs.float()
             features = net(batch_imgs.cuda())
             loss, loss_empi, loss_theo = criterion(features, batch_lbls, 
                                             num_classes=len(testset.num_classes))

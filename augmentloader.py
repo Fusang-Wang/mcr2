@@ -75,8 +75,13 @@ class AugmentLoader:
         if self.num_aug is None:
             return self.transforms(sample).unsqueeze(0)
         batch_imgs = [transforms.ToTensor()(sample).unsqueeze(0)]
+        print(batch_imgs)
+        # batch_imgs = [sample.unsqueeze(0)]
+        # batch_imgs = [transforms(sample).unsqueeze(0)]
+        
         for _ in range(self.num_aug-1):
-            transformed = self.transforms(sample)
+            sample = sample.cpu().detach().numpy()
+            transformed = self.transforms(sample)    
             batch_imgs.append(transformed.unsqueeze(0))
         return torch.cat(batch_imgs, axis=0)
     

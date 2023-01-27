@@ -1,5 +1,8 @@
 import os
 from tqdm import tqdm
+import scipy
+import pandas as pd
+from torchvision.io import read_image
 
 import cv2
 import numpy as np
@@ -11,8 +14,15 @@ from torch.utils.data import DataLoader
 
 from cluster import ElasticNetSubspaceClustering, clustering_accuracy
 import utils
-
-
+import scipy
+import scipy.io as sio
+##############
+import torch
+from torch.utils.data import Dataset
+from torchvision import datasets
+from torchvision.transforms import ToTensor
+import matplotlib.pyplot as plt
+##############
 def load_architectures(name, dim):
     """Returns a network architecture.
     
@@ -79,18 +89,43 @@ def load_trainset(name, transform=None, train=True, path="./data/"):
         trainset = torchvision.datasets.CIFAR100(root=os.path.join(path, "cifar100"), train=train,
                                                  download=True, transform=transform)
         trainset.num_classes = 100
+
     elif _name == "cifar100coarse":
         trainset = torchvision.datasets.CIFAR100(root=os.path.join(path, "cifar100"), train=train,
                                                  download=True, transform=transform)
         trainset.targets = sparse2coarse(trainset.targets) 
         trainset.num_classes = 20
+
     elif _name == "mnist":
         trainset = torchvision.datasets.MNIST(root=os.path.join(path, "mnist"), train=train, 
                                               download=True, transform=transform)
         trainset.num_classes = 10
+
+    elif _name == "fminst":
+        trainset = torchvision.datasets.FashionMNIST(root=os.path.join(path, "fmnist"), train=train,
+                                                     download=True, transform=transform)
+        trainset.num_classes = 10
+
+
+    elif _name == "flower102":
+        from Dataset import Flowers102
+        trainset = Flowers102(root=os.path.join(path, "flower102"), split='train',transform=transform, download=True)
+        trainset.num_classes = 102
+
+        return trainset
+
+    elif _name == "celeba":
+        from Dataset import CelebA
+        # from Dataset_attrs1 import CelebA
+        trainset = CelebA(root=os.path.join(path, "celebA"), split='valid',transform=transform, download=True, target_type="attr")
+        trainset.num_classes = 8
+
+        return trainset
+
     elif _name == "stl10":
         trainset = torchvision.datasets.STL10(root=os.path.join(path, "stl10"), split='train', 
                                               transform=transform, download=True)
+
         testset = torchvision.datasets.STL10(root=os.path.join(path, "stl10"), split='test', 
                                              transform=transform, download=True)
         trainset.num_classes = 10
@@ -102,6 +137,7 @@ def load_trainset(name, transform=None, train=True, path="./data/"):
             trainset.labels = trainset.labels.tolist() + testset.labels.tolist()
             trainset.targets = trainset.labels
             return trainset
+
     elif _name == "stl10sup":
         trainset = torchvision.datasets.STL10(root=os.path.join(path, "stl10"), split='train', 
                                               transform=transform, download=True)
@@ -117,7 +153,6 @@ def load_trainset(name, transform=None, train=True, path="./data/"):
     else:
         raise NameError("{} not found in trainset loader".format(name))
     return trainset
-
 
 def load_transforms(name):
     """Load data transformations.
@@ -210,7 +245,7 @@ def get_features(net, trainloader, verbose=True):
     Parameters:
         net (torch.nn.Module): get features using this model
         trainloader (torchvision.dataloader): dataloader for loading data
-        verbose (bool): shows loading staus bar
+        verbose (bool): shows loading stauts bar
 
     Returns:
         features (torch.tensor): with dimension (num_samples, feature_dimension)
@@ -223,6 +258,8 @@ def get_features(net, trainloader, verbose=True):
     else:
         train_bar = trainloader
     for step, (batch_imgs, batch_lbls) in enumerate(train_bar):
+        # print(batch_imgs.shape, batch_lbls.shape)
+        batch_imgs = batch_imgs.float()
         batch_features = net(batch_imgs.cuda())
         features.append(batch_features.cpu().detach())
         labels.append(batch_lbls)

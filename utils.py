@@ -31,10 +31,11 @@ def sort_dataset(data, labels, num_classes=10, stack=False):
 def init_pipeline(model_dir, headers=None):
     """Initialize folder and .csv logger."""
     # project folder
-    os.makedirs(model_dir)
-    os.makedirs(os.path.join(model_dir, 'checkpoints'))
-    os.makedirs(os.path.join(model_dir, 'figures'))
-    os.makedirs(os.path.join(model_dir, 'plabels'))
+    if not os.path.exists(model_dir):
+        os.makedirs(model_dir)
+        os.makedirs(os.path.join(model_dir, 'checkpoints'))
+        os.makedirs(os.path.join(model_dir, 'figures'))
+        os.makedirs(os.path.join(model_dir, 'plabels'))
     if headers is None:
         headers = ["epoch", "step", "loss", "discrimn_loss_e", "compress_loss_e", 
             "discrimn_loss_t",  "compress_loss_t"]

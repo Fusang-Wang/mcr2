@@ -4,7 +4,7 @@ import os
 import numpy as np
 import torch.optim as optim
 import torch.optim.lr_scheduler as lr_scheduler
-
+from torch.utils.data import DataLoader
 
 import train_func as tf
 from augmentloader import AugmentLoader
@@ -70,11 +70,12 @@ else:
     net = tf.load_architectures(args.arch, args.fd)
 transforms = tf.load_transforms(args.transform)
 trainset = tf.load_trainset(args.data, path=args.data_dir)
-trainloader = AugmentLoader(trainset,
-                            transforms=transforms,
-                            sampler=args.sampler,
-                            batch_size=args.bs,
-                            num_aug=args.aug)
+# trainloader = AugmentLoader(trainset,
+#                             transforms=transforms,
+#                             sampler=args.sampler,
+#                             batch_size=args.bs,
+#                             num_aug=args.aug)
+trainloader = DataLoader(trainset, batch_size=args.bs, drop_last=True, num_workers=4)
 
 criterion = MaximalCodingRateReduction(gam1=args.gam1, gam2=args.gam2, eps=args.eps)
 optimizer = optim.SGD(net.parameters(), lr=args.lr, momentum=args.mom, weight_decay=args.wd)
@@ -83,7 +84,10 @@ utils.save_params(model_dir, vars(args))
 
 ## Training
 for epoch in range(args.epo):
-    for step, (batch_imgs, _, batch_idx) in enumerate(trainloader):
+    # for step, (batch_imgs, _, batch_idx) in enumerate(trainloader):
+    for step, (batch_imgs, batch_idx) in enumerate(trainloader):
+        # print(batch_imgs.type())
+        batch_imgs = batch_imgs.float()
         batch_features = net(batch_imgs.cuda())
         loss, loss_empi, loss_theo = criterion(batch_features, batch_idx)
         optimizer.zero_grad()

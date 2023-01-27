@@ -1,5 +1,6 @@
 import argparse
 import os
+from tqdm import tqdm
 
 import numpy as np
 from torch.utils.data import DataLoader
@@ -10,6 +11,8 @@ import torch.optim.lr_scheduler as lr_scheduler
 import train_func as tf
 from loss import MaximalCodingRateReduction
 import utils
+
+import tensorboardX
 
 
 
@@ -22,7 +25,7 @@ parser.add_argument('--data', type=str, default='cifar10',
                     help='dataset for training (default: CIFAR10)')
 parser.add_argument('--epo', type=int, default=800,
                     help='number of epochs for training (default: 800)')
-parser.add_argument('--bs', type=int, default=1000,
+parser.add_argument('--bs', type=int, default=512,
                     help='input batch size for training (default: 1000)')
 parser.add_argument('--lr', type=float, default=0.001,
                     help='learning rate (default: 0.001)')
@@ -74,6 +77,7 @@ transforms = tf.load_transforms(args.transform)
 trainset = tf.load_trainset(args.data, transforms, path=args.data_dir)
 trainset = tf.corrupt_labels(args.corrupt)(trainset, args.lcr, args.lcs)
 trainloader = DataLoader(trainset, batch_size=args.bs, drop_last=True, num_workers=4)
+# train_bar = tqdm(trainloader, desc="training")
 
 criterion = MaximalCodingRateReduction(gam1=args.gam1, gam2=args.gam2, eps=args.eps)
 optimizer = optim.SGD(net.parameters(), lr=args.lr, momentum=args.mom, weight_decay=args.wd)
@@ -81,13 +85,22 @@ scheduler = lr_scheduler.MultiStepLR(optimizer, [200, 400, 600], gamma=0.1)
 utils.save_params(model_dir, vars(args))
 
 ## Training
-for epoch in range(args.epo):
+writer = tensorboardX.SummaryWriter(os.path.join(model_dir, "run"))
+epoche_bar = tqdm(range(args.epo))
+for epoch in epoche_bar:
     for step, (batch_imgs, batch_lbls) in enumerate(trainloader):
+        batch_imgs = batch_imgs.float()
         features = net(batch_imgs.cuda())
+        # print(batch_imgs.shape, batch_lbls.shape)
         loss, loss_empi, loss_theo = criterion(features, batch_lbls, num_classes=trainset.num_classes)
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
+        writer = tensorboardX.SummaryWriter(os.path.join(model_dir, "run"))
+        writer.add_scalar("train/loss", loss.sum(), epoch)
+        writer.add_scalar("train/loss_empi", sum(loss_empi), step)
+        writer.add_scalar("train/loss_theo", sum(loss_theo), step)
+        writer.close()
 
         utils.save_state(model_dir, epoch, step, loss.item(), *loss_empi, *loss_theo)
     scheduler.step()
