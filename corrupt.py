@@ -17,6 +17,7 @@ def default_corrupt(trainset, ratio, seed):
 
     np.random.seed(seed)
     train_labels = np.asarray(trainset.targets)
+    print("train_labels", train_labels.shape)
     num_classes = np.max(train_labels) + 1
     n_train = len(train_labels)
     n_rand = int(len(trainset.data)*ratio)

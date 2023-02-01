@@ -108,16 +108,16 @@ def load_trainset(name, transform=None, train=True, path="./data/"):
 
 
     elif _name == "flower102":
-        from Dataset import Flowers102
+        from CustomDataset import Flowers102
         trainset = Flowers102(root=os.path.join(path, "flower102"), split='train',transform=transform, download=True)
         trainset.num_classes = 102
 
         return trainset
 
     elif _name == "celeba":
-        from Dataset import CelebA
+        from CustomDataset import CelebA
         # from Dataset_attrs1 import CelebA
-        trainset = CelebA(root=os.path.join(path, "celebA"), split='valid',transform=transform, download=True, target_type="attr")
+        trainset = CelebA(root=os.path.join(path, "celebA"), split='train',transform=transform, download=True, target_type="attr")
         trainset.num_classes = 8
 
         return trainset

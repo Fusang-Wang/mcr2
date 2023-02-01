@@ -14,6 +14,7 @@ from typing import Any, Callable, List, Optional, Tuple, Union
 
 import PIL
 import torch
+from tqdm import tqdm
 
 # from .utils import check_integrity, download_file_from_google_drive, extract_archive, verify_str_arg
 # from .vision import VisionDataset
@@ -223,7 +224,7 @@ class CelebA(VisionDataset):
             "all": None,
         }
         split_ = split_map[verify_str_arg(split.lower(), "   ", ("train", "valid", "test", "all"))]
-        # print(split_)
+        # print("using data split:",split_)
         splits = self._load_csv("list_eval_partition.txt")
         # print(splits.data.shape)
         identity = self._load_csv("identity_CelebA.txt")
@@ -231,34 +232,80 @@ class CelebA(VisionDataset):
         landmarks_align = self._load_csv("list_landmarks_align_celeba.txt", header=1)
         attr = self._load_csv("list_attr_celeba.txt", header=1)
 
-        ### mask 1
-        # mask = slice(None) if split_ is None else (splits.data == split_).squeeze()
-        # print(mask.type, mask.size())
-        #
+        mask1 = slice(None) if split_ is None else (splits.data == split_).squeeze() # mask for train valid and test data
+        # print("number of mask1",sum(mask1))
         # if mask == slice(None):  # if split == "all"
         #     self.filename = splits.index
         # else:
         #     self.filename = [splits.index[i] for i in torch.squeeze(torch.nonzero(mask))]
 
-        ### mask2
+        # load from external files
+        # mask = np.load(os.path.join(self.root, self.base_folder, "mask_attrs_0.npy"))
+        # mask = np.array(mask, dtype=bool)
+        # mask = torch.from_numpy(mask)
+        # self.filename = [splits.index[i] for i in torch.squeeze(torch.nonzero(mask))]
 
-        mask = np.load(os.path.join(self.root, self.base_folder, "mask_attrs_0.npy"))
-        mask = np.array(mask, dtype=bool)
-        mask = torch.from_numpy(mask)
-        self.filename = [splits.index[i] for i in torch.squeeze(torch.nonzero(mask))]
-
-        # print(len(self.filename))
-        self.identity = identity.data[mask]
-        self.bbox = bbox.data[mask]
-        self.landmarks_align = landmarks_align.data[mask]
-        self.attr = attr.data[mask]
-        # map from {-1, 1} to {0, 1}
-        self.attr = torch.div(self.attr + 1, 2, rounding_mode="floor")
+        self.identity = identity.data[:]
+        self.bbox = bbox.data[:]
+        self.landmarks_align = landmarks_align.data[:]
+        self.attr = attr.data[:]
+        self.attr = torch.div(self.attr + 1, 2, rounding_mode="floor") # map from {-1, 1} to {0, 1}
         self.attr_names = attr.header
 
-        self.data: Any = []
+        classes = np.array([8, 15, 31])
+        attr = self.attr.cpu().detach().numpy()
+        attr = attr[:, classes]
+        self.num_attrs = int(len(classes))
+        C = np.array([2 ** x for x in range(self.num_attrs)]).reshape(self.num_attrs,1)
+        class_list = np.dot(attr, C)
+        # print("class_list", class_list.shape)
+        targets_ = np.squeeze(class_list).tolist()
 
-        from tqdm import tqdm
+        # generate mask for label class balance
+        selected_labels = [0,1,2,3,4,5,6,7]
+        num_imgs_per_class = 10000
+        selected_pos = np.array([])
+        mask2 = np.zeros(splits.data.shape[0],dtype=bool) # mask of label classes
+        print(f'selected label:{selected_labels}')
+        print(f'maxnumber of imgs per class:{num_imgs_per_class}')
+
+        print("##################################################")
+        print("statistic information for the whole celebA dataset")
+        for i in selected_labels:
+            temp = class_list == i
+            print(f"class {i}: number {sum(temp)} before masking")
+            pos_temp,_ = np.where(class_list == i)
+            pos_temp = np.array(pos_temp)
+            np.random.shuffle(pos_temp)
+            selected_pos = np.concatenate((selected_pos, pos_temp[:num_imgs_per_class]))
+        print("##################################################")
+
+        selected_pos = np.array(selected_pos,dtype=int)
+        mask2[selected_pos] = True
+        mask2 = torch.from_numpy(mask2)
+
+        mask = mask1 * mask2
+        self.filename = [splits.index[i] for i in torch.squeeze(torch.nonzero(mask))]
+        self.targets = [targets_[i] for i in torch.squeeze(torch.nonzero(mask))]
+
+        print("##################################################")
+        print("statistic information for the CUNSTOM dataset")
+        # show class information
+        print("showing class information")
+        attr_names = np.array(self.attr_names)[classes]
+        print(attr_names)
+
+        class_list = np.array(self.targets, dtype=int)
+        for i in range(2**(len(classes))):
+            temp = class_list == i
+            # pos_temp,_ = np.where(class_list == i)
+            # pos_temp = np.array(pos_temp)
+            print(f"class {i}: number {sum(temp)}")
+        print("##################################################")
+
+
+        # generate data
+        self.data: Any = []
         filename_bar = tqdm(self.filename, "loading images from data")
         for name in filename_bar:
             X = PIL.Image.open(os.path.join(self.root, self.base_folder, "img_align_celeba", name))
@@ -276,27 +323,8 @@ class CelebA(VisionDataset):
             X = np.array(X)
             self.data.append(X)
         self.data = np.array(self.data)
-        # print(self.data.shape)
+        print("datashape", len(targets_), self.data.shape, len(self.targets))
 
-        # print(np.array(self.attr_names)[classes])
-        classes = np.array([8, 15, 31])
-        attr = self.attr.cpu().detach().numpy()
-        attr = attr[:, classes]
-        self.num_attrs = int(len(classes))
-        C = np.array([2 ** x for x in range(self.num_attrs)]).reshape(self.num_attrs,1)
-        class_list = np.dot(attr, C)
-        self.targets = np.squeeze(class_list).tolist()
-
-        # show class information
-        print("showing class information")
-        attr_names = np.array(self.attr_names)[classes]
-        print(attr_names)
-        class_list = np.array(class_list, dtype=int)
-        for i in range(2**(len(classes))):
-            temp = class_list == i
-            pos_temp,_ = np.where(class_list == i)
-            pos_temp = np.array(pos_temp)
-            print(f"class {i}: number {sum(temp)}")
 
 
     def _load_csv(
@@ -361,13 +389,13 @@ class CelebA(VisionDataset):
         #     else:
         #         # TODO: refactor with utils.verify_str_arg
         #         raise ValueError(f'Target type "{t}" is not recognized.')
-        #
+
         if self.transform is not None:
             X = self.transform(X)
         #
         # if target:
         #     target = tuple(target) if len(target) > 1 else target[0]
-        #
+        
         if self.target_transform is not None:
             target = self.target_transform(target)
         # else:
@@ -378,7 +406,7 @@ class CelebA(VisionDataset):
 
 
     def __len__(self) -> int:
-        return len(self.attr)
+        return len(self.filename) # lens of the max index of the images
 
     def extra_repr(self) -> str:
         lines = ["Target type: {target_type}", "Split: {split}"]
