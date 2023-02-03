@@ -465,9 +465,11 @@ def plot_nearest_component_supervised(args, features, labels, epoch, trainset):
         img_idx = np.argmax(np.abs(proj), axis=0)
         nearest_data.append(np.array(data_sort[c])[img_idx])
     
-    fig, ax = plt.subplots(ncols=10, nrows=10, figsize=(10, 10))
-    for r in range(10):
-        for c in range(10):
+    fig, ax = plt.subplots(ncols=8, nrows=8, figsize=(10, 10))
+    # for r in range(10):
+    for r in range(8):
+        # for c in range(10):
+        for c in range(8):
             ax[r, c].imshow(nearest_data[r][c])
             ax[r, c].set_xticks([])
             ax[r, c].set_yticks([])
@@ -613,20 +615,29 @@ def plot_accuracy(args, path):
 def plot_heatmap(args, features, labels, epoch):
     """Plot heatmap of cosine simliarity for all features. """
     num_classes = trainset.num_classes
-    features_sort, _ = utils.sort_dataset(features.numpy(), labels.numpy(), 
+    # features_sort, labels_sort = utils.sort_dataset(features.numpy(), labels.numpy(),
+    #                         num_classes=num_classes, stack=False)
+    features_sort, labels_sort = utils.sort_dataset(features.numpy(), labels.numpy(),
                             num_classes=num_classes, stack=False)
+    print('np.vstack')
     features_sort_ = np.vstack(features_sort)
+    # print(labels_sort)
     sim_mat = np.abs(features_sort_ @ features_sort_.T)
+    print("sim_mat", sim_mat.shape)
+    len = sim_mat.shape[0]
 
     plt.rc('text', usetex=False)
-    plt.rcParams['font.family'] = 'serif'
-    plt.rcParams['font.serif'] = ['Times New Roman'] #+ plt.rcParams['font.serif']
+    # plt.rcParams['font.family'] = 'serif'
+    # plt.rcParams['font.serif'] = ['Times New Roman'] #+ plt.rcParams['font.serif']
 
     fig, ax = plt.subplots(figsize=(7, 5), sharey=True, sharex=True, dpi=400)
+    print("imshow")
     im = ax.imshow(sim_mat, cmap='Blues')
     fig.colorbar(im, pad=0.02, drawedges=0, ticks=[0, 0.5, 1])
-    ax.set_xticks(np.linspace(0, 50000, 6))
-    ax.set_yticks(np.linspace(0, 50000, 6))
+    # ax.set_xticks(np.linspace(0, 50000, 6))
+    # ax.set_yticks(np.linspace(0, 50000, 6))
+    ax.set_xticks(np.linspace(0, len, 6))
+    ax.set_yticks(np.linspace(0, len, 6))
     [tick.label.set_fontsize(10) for tick in ax.xaxis.get_major_ticks()] 
     [tick.label.set_fontsize(10) for tick in ax.yaxis.get_major_ticks()]
     fig.tight_layout()
@@ -689,6 +700,7 @@ if __name__ == "__main__":
         net, epoch = tf.load_checkpoint(args.model_dir, args.epoch, eval_=True)
         transforms = tf.load_transforms('test')
         trainset = tf.load_trainset(params['data'], transforms)
+        # trainset = tf.load_trainset(params['data'])
         if 'lcr' in params.keys(): # supervised corruption case
             trainset = tf.corrupt_labels(params['corrupt'])(trainset, params['lcr'], params['lcs'])
         trainloader = DataLoader(trainset, batch_size=200, num_workers=4)
