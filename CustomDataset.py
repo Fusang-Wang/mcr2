@@ -262,8 +262,8 @@ class CelebA(VisionDataset):
         targets_ = np.squeeze(class_list).tolist()
 
         # generate mask for label class balance
-        selected_labels = [0,1,2,3,4,5,6,7]
-        num_imgs_per_class = 10000
+        selected_labels = [2, 3, 4]
+        num_imgs_per_class = 10000000
         selected_pos = np.array([])
         mask2 = np.zeros(splits.data.shape[0],dtype=bool) # mask of label classes
         print(f'selected label:{selected_labels}')

@@ -14,7 +14,7 @@ from tqdm import tqdm
 CSV = namedtuple("CSV", ["header", "index", "data"])
 
 # %%
-dataroot = '/data/fusang/fm/celeba_raw/Anno'
+dataroot = '/home/fusang/Desktop/Master_thesis/mcr2/data/celebA/celeba/Anno'
 image_size = 32
 
 # %%
@@ -117,7 +117,7 @@ def find_subset_mask(remove_label, splits, attr, split_name):
         print(f"class {i}: number {sum(temp)}")
         
     mask_path = f'mask_npy/celeba_{classes[0]}_{classes[1]}_no{remove_label}_{split_name}.npy'
-    np.save(os.path.join("/data/fusang/fm/mcr2", mask_path), mask)
+    np.save(os.path.join("/home/fusang/Desktop/Master_thesis/mcr2/", mask_path), mask)
     print(f'mask saving to {mask_path}')
 
 # %%
@@ -161,8 +161,8 @@ def select_subset_images(mask_cls, inputPath, outputPath, maxNumber):
         imageio.imwrite(out_path, img)
     print("Finished saving subdataset to", outputPath)
 
-# # %%
-mask = "/data/fusang/fm/mcr2/mask_npy/celeba_8_31_no0_train.npy"
-input = "/data/fusang/fm/celeba_raw/img_align_celeba"
-ouput = "/data/fusang/fm/celeba_raw/celeba_blackH_smile_no0_train"
-select_subset_images(mask, input, ouput, 10000000)
+if __name__ == '__main__':
+    mask = "/home/fusang/Desktop/Master_thesis/mcr2/mask_npy/celeba_8_31_no0_train.npy"
+    input = "/home/fusang/Desktop/Master_thesis/mcr2/data/celebA/celeba/img_align_celeba"
+    ouput = "/home/fusang/Desktop/Master_thesis/mcr2/data/celebA/celeba_blackH_smile_no0_train"
+    select_subset_images(mask, input, ouput, 10000000)
