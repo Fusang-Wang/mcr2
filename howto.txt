@@ -1,0 +1,2 @@
+python train_sup.py --arch resnet18 --celeba --fd 128 --epo 1 --bs 100 --eps 0.5 --gam1 1 --gam2 1 --lr 0.01 --lcr 0.0 --tail test1
+python plot.py --model saved_models/sup_resnet18+128_flower102_epo500_bs256_lr0.01_mom0.9_wd0.0005_gam11.0_gam21.0_eps0.5_lcr0.0/ --nearcomp_class
