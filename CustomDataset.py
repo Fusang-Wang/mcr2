@@ -145,7 +145,9 @@ class Flowers102(VisionDataset):
             filename, md5 = self._file_dict[id]
             download_url(self._download_url_prefix + filename, str(self._base_folder), md5=md5)
 
+
 CSV = namedtuple("CSV", ["header", "index", "data"])
+
 
 class CelebA(VisionDataset):
     """`Large-scale CelebFaces Attributes (CelebA) Dataset <http://mmlab.ie.cuhk.edu.hk/projects/CelebA.html>`_ Dataset.
@@ -174,8 +176,7 @@ class CelebA(VisionDataset):
             puts it in root directory. If dataset is already downloaded, it is not
             downloaded again.
     """
-
-    base_folder = "celeba"
+    # TODO Attention, the output of the dataset contains all the images and is on CPU!!
     # There currently does not appear to be a easy way to extract 7z in python (without introducing additional
     # dependencies). The "in-the-wild" (not aligned+cropped) images are only in 7z, so they are not available
     # right now.
@@ -199,10 +200,14 @@ class CelebA(VisionDataset):
         target_type: Union[List[str], str] = "attr",
         transform: Optional[Callable] = None,
         target_transform: Optional[Callable] = None,
-        download: bool = False,
+        balance: bool = True,
+        download: bool = False
     ) -> None:
+
         super().__init__(root, transform=transform, target_transform=target_transform)
         self.split = split
+        self.balance = balance
+
         if isinstance(target_type, list):
             self.target_type = target_type
         else:
@@ -224,92 +229,71 @@ class CelebA(VisionDataset):
             "all": None,
         }
         split_ = split_map[verify_str_arg(split.lower(), "   ", ("train", "valid", "test", "all"))]
-        # print("using data split:",split_)
         splits = self._load_csv("list_eval_partition.txt")
-        # print(splits.data.shape)
-        identity = self._load_csv("identity_CelebA.txt")
-        bbox = self._load_csv("list_bbox_celeba.txt", header=1)
-        landmarks_align = self._load_csv("list_landmarks_align_celeba.txt", header=1)
-        attr = self._load_csv("list_attr_celeba.txt", header=1)
+        split_mask = slice(None) if split_ is None else (splits.data == split_).squeeze()  # mask for train/valid/test
+        attr_csv = self._load_csv("list_attr_celeba.txt", header=1)
 
-        mask1 = slice(None) if split_ is None else (splits.data == split_).squeeze() # mask for train valid and test data
-        # print("number of mask1",sum(mask1))
-        # if mask == slice(None):  # if split == "all"
-        #     self.filename = splits.index
-        # else:
-        #     self.filename = [splits.index[i] for i in torch.squeeze(torch.nonzero(mask))]
+        # identity = self._load_csv("identity_CelebA.txt")
+        # bbox = self._load_csv("list_bbox_celeba.txt", header=1)
+        # landmarks_align = self._load_csv("list_landmarks_align_celeba.txt", header=1)
+        # self.identity = identity.data[:]
+        # self.bbox = bbox.data[:]
+        # self.landmarks_align = landmarks_align.data[:]
 
-        # load from external files
-        # mask = np.load(os.path.join(self.root, self.base_folder, "mask_attrs_0.npy"))
-        # mask = np.array(mask, dtype=bool)
-        # mask = torch.from_numpy(mask)
-        # self.filename = [splits.index[i] for i in torch.squeeze(torch.nonzero(mask))]
+        device = attr_csv.data.device
+        type = attr_csv.data.type()
+        self.attr = attr_csv.data[:]
+        self.attr = torch.div(self.attr + 1, 2, rounding_mode="floor")  # map from {-1, 1} to {0, 1}
+        self.attr_names = attr_csv.header
 
-        self.identity = identity.data[:]
-        self.bbox = bbox.data[:]
-        self.landmarks_align = landmarks_align.data[:]
-        self.attr = attr.data[:]
-        self.attr = torch.div(self.attr + 1, 2, rounding_mode="floor") # map from {-1, 1} to {0, 1}
-        self.attr_names = attr.header
+        wanted_labels = torch.tensor([8, 21, 36]).to(device)  # black_hair, mouth_slightly_opened ,wearing_lipsticks
+        attr = self.attr
+        attr = attr[:, wanted_labels]
+        self.num_attrs = int(wanted_labels.size(0))
 
-        classes = np.array([8, 15, 31])
-        attr = self.attr.cpu().detach().numpy()
-        attr = attr[:, classes]
-        self.num_attrs = int(len(classes))
-        C = np.array([2 ** x for x in range(self.num_attrs)]).reshape(self.num_attrs,1)
-        class_list = np.dot(attr, C)
-        # print("class_list", class_list.shape)
-        targets_ = np.squeeze(class_list).tolist()
+        # create the transform matrix for onehot2class
+        c = torch.tensor([2 ** x for x in range(self.num_attrs)]).reshape(self.num_attrs, 1).to(device)
+        class_labels = torch.matmul(attr, c)
+        targets_ = np.squeeze(class_labels).tolist()
 
         # generate mask for label class balance
-        selected_labels = [2, 3, 4]
-        num_imgs_per_class = 10000000
-        selected_pos = np.array([])
-        mask2 = np.zeros(splits.data.shape[0],dtype=bool) # mask of label classes
-        print(f'selected label:{selected_labels}')
-        print(f'maxnumber of imgs per class:{num_imgs_per_class}')
-
-        print("##################################################")
-        print("statistic information for the whole celebA dataset")
+        selected_labels = [0, 1, 2, 3, 4, 5, 6, 7]
+        num_imgs_per_class = attr.size(0)
+        if self.balance:
+            num_imgs_per_class = 5000
+        selected_pos = []
+        attrs_mask = torch.zeros(splits.data.shape[0], dtype=bool)  # mask of label classes
+        print(f'selected label:{selected_labels} for attrs {self.attr_names}')
+        print(f'max number of imgs per class:{num_imgs_per_class}')
         for i in selected_labels:
-            temp = class_list == i
+            temp = class_labels == i
             print(f"class {i}: number {sum(temp)} before masking")
-            pos_temp,_ = np.where(class_list == i)
-            pos_temp = np.array(pos_temp)
-            np.random.shuffle(pos_temp)
-            selected_pos = np.concatenate((selected_pos, pos_temp[:num_imgs_per_class]))
-        print("##################################################")
+            pos_temp, _ = torch.where(class_labels == i)
+            pos_temp = pos_temp[:num_imgs_per_class]
+            # TODO implement shuffle for data selection
+            selected_pos.append(pos_temp)
+        print("---")
+        selected_pos = torch.cat(selected_pos, dim=0)
+        attrs_mask[selected_pos] = True
 
-        selected_pos = np.array(selected_pos,dtype=int)
-        mask2[selected_pos] = True
-        mask2 = torch.from_numpy(mask2)
-
-        mask = mask1 * mask2
+        mask = torch.logical_and(split_mask, attrs_mask)
         self.filename = [splits.index[i] for i in torch.squeeze(torch.nonzero(mask))]
         self.targets = [targets_[i] for i in torch.squeeze(torch.nonzero(mask))]
 
-        print("##################################################")
-        print("statistic information for the CUNSTOM dataset")
-        # show class information
-        print("showing class information")
-        attr_names = np.array(self.attr_names)[classes]
-        print(attr_names)
+        print("Check Statistic Info of the Dataset")
+        print(f"Wanted Labels: {self.attr_names}")
 
         class_list = np.array(self.targets, dtype=int)
-        for i in range(2**(len(classes))):
+        for i in range(2**self.num_attrs):
             temp = class_list == i
-            # pos_temp,_ = np.where(class_list == i)
-            # pos_temp = np.array(pos_temp)
-            print(f"class {i}: number {sum(temp)}")
-        print("##################################################")
-
+            print(f" Num Images for Class {i}: {sum(temp)}")
+        print("---")
 
         # generate data
         self.data: Any = []
         filename_bar = tqdm(self.filename, "loading images from data")
         for name in filename_bar:
-            X = PIL.Image.open(os.path.join(self.root, self.base_folder, "img_align_celeba", name))
-           
+            X = PIL.Image.open(os.path.join(self.root, "img_align_celeba", name))
             # center crop with PIL
             width, height = X.size   # Get dimensions
             new_width, new_height = 158, 158
@@ -319,12 +303,11 @@ class CelebA(VisionDataset):
             bottom = (height + new_height)/2
             X = X.crop((left, top, right, bottom))
 
-            X = X.resize((32, 32))
+            X = X.resize((128, 128))
             X = np.array(X)
             self.data.append(X)
         self.data = np.array(self.data)
         print("datashape", len(targets_), self.data.shape, len(self.targets))
-
 
 
     def _load_csv(
@@ -332,7 +315,7 @@ class CelebA(VisionDataset):
         filename: str,
         header: Optional[int] = None,
     ) -> CSV:
-        with open(os.path.join(self.root, self.base_folder, filename)) as csv_file:
+        with open(os.path.join(self.root, "Anno", filename)) as csv_file:
             data = list(csv.reader(csv_file, delimiter=" ", skipinitialspace=True))
 
         if header is not None:
@@ -349,15 +332,18 @@ class CelebA(VisionDataset):
 
     def _check_integrity(self) -> bool:
         for (_, md5, filename) in self.file_list:
-            fpath = os.path.join(self.root, self.base_folder, filename)
             _, ext = os.path.splitext(filename)
+            if ext not in [".zip", ".7z"]:
+                fpath = os.path.join(self.root, "Anno", filename)
+            else:
+                fpath = os.path.join(self.root, filename)
             # Allow original archive to be deleted (zip and 7z)
             # Only need the extracted images
             if ext not in [".zip", ".7z"] and not check_integrity(fpath, md5):
                 return False
 
         # Should check a hash of the images
-        return os.path.isdir(os.path.join(self.root, self.base_folder, "img_align_celeba"))
+        return os.path.isdir(os.path.join(self.root, "img_align_celeba"))
 
     def download(self) -> None:
         if self._check_integrity():
@@ -370,40 +356,16 @@ class CelebA(VisionDataset):
         extract_archive(os.path.join(self.root, self.base_folder, "img_align_celeba.zip"))
 
     def __getitem__(self, index: int) -> Tuple[Any, Any]:
-        X, target = self.data[index], self.targets[index]
-        # print("label", label.shape)
-        X = PIL.Image.fromarray(X)
-
-        # target: Any = []
-        # for t in self.target_type:
-        #     if t == "label":
-        #         target = label
-        #     if t == "attr":
-        #         # target.append(self.attr[index, :])
-        #     elif t == "identity":
-        #         target.append(self.identity[index, 0])
-        #     elif t == "bbox":
-        #         target.append(self.bbox[index, :])
-        #     elif t == "landmarks":
-        #         target.append(self.landmarks_align[index, :])
-        #     else:
-        #         # TODO: refactor with utils.verify_str_arg
-        #         raise ValueError(f'Target type "{t}" is not recognized.')
+        x, target = self.data[index], self.targets[index]
+        x = PIL.Image.fromarray(x)
 
         if self.transform is not None:
-            X = self.transform(X)
-        #
-        # if target:
-        #     target = tuple(target) if len(target) > 1 else target[0]
+            x = self.transform(x)
         
         if self.target_transform is not None:
             target = self.target_transform(target)
-        # else:
-        #     target = None
-        # print(target)
 
-        return X, target
-
+        return x, target
 
     def __len__(self) -> int:
         return len(self.filename) # lens of the max index of the images

@@ -117,7 +117,8 @@ def load_trainset(name, transform=None, train=True, path="./data/"):
     elif _name == "celeba":
         from CustomDataset import CelebA
         # from Dataset_attrs1 import CelebA
-        trainset = CelebA(root=os.path.join(path, "celebA"), split='train',transform=transform, download=True, target_type="attr")
+        trainset = CelebA(root=os.path.join(path, "celebA"), split='train', transform=transform, \
+                          download=False, target_type="attr")
         trainset.num_classes = 8
 
         return trainset
