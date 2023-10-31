@@ -75,8 +75,10 @@ class ResNet(nn.Module):
         self.layer2 = self._make_layer(block, 128, num_blocks[1], stride=2)
         self.layer3 = self._make_layer(block, 256, num_blocks[2], stride=2)
         self.layer4 = self._make_layer(block, 512, num_blocks[3], stride=2)
+        # Attention the parameter of reshape here is hand made for img size of 128 (32 by defaut), \
+        # that's where the 16 comes from
         self.reshape = torch.nn.Sequential(
-            nn.Linear(512 * block.expansion, 512, bias=False),
+            nn.Linear(16 * 512 * block.expansion, 512, bias=False),
             nn.BatchNorm1d(512),
             nn.ReLU(inplace=True),
             nn.Linear(512, feature_dim, bias=True)

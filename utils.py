@@ -5,7 +5,7 @@ import numpy as np
 import torch
 
 
-def sort_dataset(data, labels, num_classes=10, stack=False):
+def sort_dataset(data, labels, num_classes=8, stack=False):
     """Sort dataset based on classes.
     
     Parameters:

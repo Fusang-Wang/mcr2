@@ -16,13 +16,12 @@ from cluster import ElasticNetSubspaceClustering, clustering_accuracy
 import utils
 import scipy
 import scipy.io as sio
-##############
 import torch
 from torch.utils.data import Dataset
 from torchvision import datasets
 from torchvision.transforms import ToTensor
 import matplotlib.pyplot as plt
-##############
+
 def load_architectures(name, dim):
     """Returns a network architecture.
     
@@ -37,6 +36,9 @@ def load_architectures(name, dim):
     _name = name.lower()
     if _name == "resnet18":
         from architectures.resnet_cifar import ResNet18
+        net = ResNet18(dim)
+    elif _name == "resnet18celeba":
+        from architectures.resnet_custom import ResNet18
         net = ResNet18(dim)
     elif _name == "resnet18ctrl":
         from architectures.resnet_cifar import ResNet18Control
@@ -68,7 +70,7 @@ def load_architectures(name, dim):
     return net
 
 
-def load_trainset(name, transform=None, train=True, path="./data/"):
+def load_trainset(name, transform=None, train=True, path="/home/alpha/Desktop/data/data/"):
     """Loads a dataset for training and testing. If augmentloader is used, transform should be None.
     
     Parameters:
@@ -168,6 +170,11 @@ def load_transforms(name):
             transforms.RandomCrop(32, padding=8),
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor()])
+    if _name == "celeba":
+        transform = transforms.Compose([
+            transforms.RandomCrop(128, padding=8),
+            transforms.RandomHorizontalFlip(),
+            transforms.ToTensor()])
     elif _name == "cifar":
         transform = transforms.Compose([
             transforms.RandomResizedCrop(32),
@@ -260,8 +267,8 @@ def get_features(net, trainloader, verbose=True):
         train_bar = trainloader
     for step, (batch_imgs, batch_lbls) in enumerate(train_bar):
         # print(batch_imgs.shape, batch_lbls.shape)
-        batch_imgs = batch_imgs.float()
-        batch_features = net(batch_imgs.cuda())
+        batch_imgs = batch_imgs.float().cuda()
+        batch_features = net(batch_imgs)
         features.append(batch_features.cpu().detach())
         labels.append(batch_lbls)
     return torch.cat(features), torch.cat(labels)

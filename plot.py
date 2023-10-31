@@ -615,15 +615,11 @@ def plot_accuracy(args, path):
 def plot_heatmap(args, features, labels, epoch):
     """Plot heatmap of cosine simliarity for all features. """
     num_classes = trainset.num_classes
-    # features_sort, labels_sort = utils.sort_dataset(features.numpy(), labels.numpy(),
-    #                         num_classes=num_classes, stack=False)
     features_sort, labels_sort = utils.sort_dataset(features.numpy(), labels.numpy(),
                             num_classes=num_classes, stack=False)
-    print('np.vstack')
     features_sort_ = np.vstack(features_sort)
     # print(labels_sort)
     sim_mat = np.abs(features_sort_ @ features_sort_.T)
-    print("sim_mat", sim_mat.shape)
     len = sim_mat.shape[0]
 
     plt.rc('text', usetex=False)
@@ -634,8 +630,6 @@ def plot_heatmap(args, features, labels, epoch):
     print("imshow")
     im = ax.imshow(sim_mat, cmap='Blues')
     fig.colorbar(im, pad=0.02, drawedges=0, ticks=[0, 0.5, 1])
-    # ax.set_xticks(np.linspace(0, 50000, 6))
-    # ax.set_yticks(np.linspace(0, 50000, 6))
     ax.set_xticks(np.linspace(0, len, 6))
     ax.set_yticks(np.linspace(0, len, 6))
     [tick.label.set_fontsize(10) for tick in ax.xaxis.get_major_ticks()] 
@@ -703,7 +697,7 @@ if __name__ == "__main__":
         # trainset = tf.load_trainset(params['data'])
         if 'lcr' in params.keys(): # supervised corruption case
             trainset = tf.corrupt_labels(params['corrupt'])(trainset, params['lcr'], params['lcs'])
-        trainloader = DataLoader(trainset, batch_size=200, num_workers=4)
+        trainloader = DataLoader(trainset, batch_size=64, num_workers=4)
         features, labels = tf.get_features(net, trainloader)
 
     if args.pca:

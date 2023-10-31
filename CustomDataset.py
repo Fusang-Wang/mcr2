@@ -1,6 +1,4 @@
 from pathlib import Path
-from typing import Any, Callable, Optional, Tuple
-
 import PIL.Image
 
 from torchvision.datasets.utils import check_integrity, download_and_extract_archive, download_url, verify_str_arg, download_file_from_google_drive, extract_archive
@@ -15,10 +13,6 @@ from typing import Any, Callable, List, Optional, Tuple, Union
 import PIL
 import torch
 from tqdm import tqdm
-
-# from .utils import check_integrity, download_file_from_google_drive, extract_archive, verify_str_arg
-# from .vision import VisionDataset
-
 
 class Flowers102(VisionDataset):
     """`Oxford 102 Flower <https://www.robots.ox.ac.uk/~vgg/data/flowers/102/>`_ Dataset.
@@ -145,9 +139,7 @@ class Flowers102(VisionDataset):
             filename, md5 = self._file_dict[id]
             download_url(self._download_url_prefix + filename, str(self._base_folder), md5=md5)
 
-
 CSV = namedtuple("CSV", ["header", "index", "data"])
-
 
 class CelebA(VisionDataset):
     """`Large-scale CelebFaces Attributes (CelebA) Dataset <http://mmlab.ie.cuhk.edu.hk/projects/CelebA.html>`_ Dataset.
@@ -233,13 +225,6 @@ class CelebA(VisionDataset):
         split_mask = slice(None) if split_ is None else (splits.data == split_).squeeze()  # mask for train/valid/test
         attr_csv = self._load_csv("list_attr_celeba.txt", header=1)
 
-        # identity = self._load_csv("identity_CelebA.txt")
-        # bbox = self._load_csv("list_bbox_celeba.txt", header=1)
-        # landmarks_align = self._load_csv("list_landmarks_align_celeba.txt", header=1)
-        # self.identity = identity.data[:]
-        # self.bbox = bbox.data[:]
-        # self.landmarks_align = landmarks_align.data[:]
-
         device = attr_csv.data.device
         type = attr_csv.data.type()
         self.attr = attr_csv.data[:]
@@ -260,14 +245,14 @@ class CelebA(VisionDataset):
         selected_labels = [0, 1, 2, 3, 4, 5, 6, 7]
         num_imgs_per_class = attr.size(0)
         if self.balance:
-            num_imgs_per_class = 5000
+            num_imgs_per_class = 1000
         selected_pos = []
         attrs_mask = torch.zeros(splits.data.shape[0], dtype=bool)  # mask of label classes
-        print(f'selected label:{selected_labels} for attrs {self.attr_names}')
+        # print(f'selected label:{selected_labels} for attrs {self.attr_names}')
         print(f'max number of imgs per class:{num_imgs_per_class}')
         for i in selected_labels:
             temp = class_labels == i
-            print(f"class {i}: number {sum(temp)} before masking")
+            print(f"class {i}: number {sum(temp)} of the whole celebA dataset")
             pos_temp, _ = torch.where(class_labels == i)
             pos_temp = pos_temp[:num_imgs_per_class]
             # TODO implement shuffle for data selection
@@ -281,7 +266,7 @@ class CelebA(VisionDataset):
         self.targets = [targets_[i] for i in torch.squeeze(torch.nonzero(mask))]
 
         print("Check Statistic Info of the Dataset")
-        print(f"Wanted Labels: {self.attr_names}")
+        # print(f"Wanted Labels: {self.attr_names}")
 
         class_list = np.array(self.targets, dtype=int)
         for i in range(2**self.num_attrs):
@@ -307,7 +292,7 @@ class CelebA(VisionDataset):
             X = np.array(X)
             self.data.append(X)
         self.data = np.array(self.data)
-        print("datashape", len(targets_), self.data.shape, len(self.targets))
+        # print("datashape", len(targets_), self.data.shape, len(self.targets))
 
 
     def _load_csv(
@@ -360,6 +345,7 @@ class CelebA(VisionDataset):
         x = PIL.Image.fromarray(x)
 
         if self.transform is not None:
+            # TODO Attention! the transform function here is predefined in train_func and by defaut size of img is 32
             x = self.transform(x)
         
         if self.target_transform is not None:
