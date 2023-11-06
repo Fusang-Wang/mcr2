@@ -193,12 +193,14 @@ class CelebA(VisionDataset):
         transform: Optional[Callable] = None,
         target_transform: Optional[Callable] = None,
         balance: bool = True,
-        download: bool = False
+        download: bool = False,
+        max_imgNum: int = 10000,
     ) -> None:
 
         super().__init__(root, transform=transform, target_transform=target_transform)
         self.split = split
         self.balance = balance
+        self.max_imgNum = max_imgNum
 
         if isinstance(target_type, list):
             self.target_type = target_type
@@ -245,7 +247,7 @@ class CelebA(VisionDataset):
         selected_labels = [0, 1, 2, 3, 4, 5, 6, 7]
         num_imgs_per_class = attr.size(0)
         if self.balance:
-            num_imgs_per_class = 1000
+            num_imgs_per_class = self.max_imgNum
         selected_pos = []
         attrs_mask = torch.zeros(splits.data.shape[0], dtype=bool)  # mask of label classes
         # print(f'selected label:{selected_labels} for attrs {self.attr_names}')

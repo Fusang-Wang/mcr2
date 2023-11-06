@@ -255,12 +255,12 @@ def plot_pca(args, features, labels, epoch):
 
 def plot_pca_epoch(args):
     """Plot PCA for different epochs in the same plot. """
-    EPOCHS = [0, 10, 100, 500]
+    EPOCHS = [75, 79, 85, 95]
 
     params = utils.load_params(args.model_dir)
     transforms = tf.load_transforms('test')
     trainset = tf.load_trainset(params['data'], transforms)
-    trainloader = DataLoader(trainset, batch_size=200, num_workers=4)
+    trainloader = DataLoader(trainset, batch_size=64, num_workers=4)
 
     sig_vals = []
     for epoch in EPOCHS:
@@ -693,7 +693,8 @@ if __name__ == "__main__":
         params = utils.load_params(args.model_dir)
         net, epoch = tf.load_checkpoint(args.model_dir, args.epoch, eval_=True)
         transforms = tf.load_transforms('test')
-        trainset = tf.load_trainset(params['data'], transforms)
+        trainset = tf.load_trainset(params['data'], transforms, max_imgNum=1000)
+
         # trainset = tf.load_trainset(params['data'])
         if 'lcr' in params.keys(): # supervised corruption case
             trainset = tf.corrupt_labels(params['corrupt'])(trainset, params['lcr'], params['lcs'])

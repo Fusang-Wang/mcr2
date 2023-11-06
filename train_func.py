@@ -70,7 +70,7 @@ def load_architectures(name, dim):
     return net
 
 
-def load_trainset(name, transform=None, train=True, path="/home/alpha/Desktop/data/data/"):
+def load_trainset(name, transform=None, train=True, path="/home/alpha/Desktop/data/data/", **kwargs):
     """Loads a dataset for training and testing. If augmentloader is used, transform should be None.
     
     Parameters:
@@ -120,7 +120,7 @@ def load_trainset(name, transform=None, train=True, path="/home/alpha/Desktop/da
         from CustomDataset import CelebA
         # from Dataset_attrs1 import CelebA
         trainset = CelebA(root=os.path.join(path, "celebA"), split='train', transform=transform, \
-                          download=False, target_type="attr")
+                          download=False, target_type="attr", max_imgNum=kwargs["max_imgNum"])
         trainset.num_classes = 8
 
         return trainset
