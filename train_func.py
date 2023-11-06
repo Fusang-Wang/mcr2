@@ -119,8 +119,12 @@ def load_trainset(name, transform=None, train=True, path="/home/alpha/Desktop/da
     elif _name == "celeba":
         from CustomDataset import CelebA
         # from Dataset_attrs1 import CelebA
-        trainset = CelebA(root=os.path.join(path, "celebA"), split='train', transform=transform, \
-                          download=False, target_type="attr", max_imgNum=kwargs["max_imgNum"])
+        if "max_imgNum" in kwargs:
+            trainset = CelebA(root=os.path.join(path, "celebA"), split='train', transform=transform, \
+                              download=False, target_type="attr", max_imgNum=kwargs["max_imgNum"])
+        else:
+            trainset = CelebA(root=os.path.join(path, "celebA"), split='train', transform=transform, \
+                              download=False, target_type="attr")
         trainset.num_classes = 8
 
         return trainset
