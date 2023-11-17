@@ -13,7 +13,7 @@ from loss import MaximalCodingRateReduction
 import utils
 
 import tensorboardX
-
+from torchsummary import summary
 
 
 parser = argparse.ArgumentParser(description='Supervised Learning')
@@ -73,6 +73,7 @@ if args.pretrain_dir is not None:
     utils.update_params(model_dir, args.pretrain_dir)
 else:
     net = tf.load_architectures(args.arch, args.fd)
+    summary(net, (3, 128, 128))
 transforms = tf.load_transforms(args.transform)
 trainset = tf.load_trainset(args.data, transforms, path=args.data_dir)
 trainset = tf.corrupt_labels(args.corrupt)(trainset, args.lcr, args.lcs)
@@ -96,13 +97,14 @@ for epoch in epoche_bar:
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
+
         writer = tensorboardX.SummaryWriter(os.path.join(model_dir, "run"))
         writer.add_scalar("train/loss", loss.sum(), epoch)
         writer.add_scalar("train/loss_empi", sum(loss_empi), step)
         writer.add_scalar("train/loss_theo", sum(loss_theo), step)
         writer.close()
-
         utils.save_state(model_dir, epoch, step, loss.item(), *loss_empi, *loss_theo)
+
     scheduler.step()
     utils.save_ckpt(model_dir, net, epoch)
 print("training complete.")

@@ -1,7 +1,9 @@
+import random
 from pathlib import Path
 import PIL.Image
 
-from torchvision.datasets.utils import check_integrity, download_and_extract_archive, download_url, verify_str_arg, download_file_from_google_drive, extract_archive
+from torchvision.datasets.utils import check_integrity, download_and_extract_archive, download_url, verify_str_arg, \
+    download_file_from_google_drive, extract_archive
 from torchvision.datasets.vision import VisionDataset
 import numpy as np
 
@@ -13,6 +15,8 @@ from typing import Any, Callable, List, Optional, Tuple, Union
 import PIL
 import torch
 from tqdm import tqdm
+import pickle
+
 
 class Flowers102(VisionDataset):
     """`Oxford 102 Flower <https://www.robots.ox.ac.uk/~vgg/data/flowers/102/>`_ Dataset.
@@ -48,12 +52,12 @@ class Flowers102(VisionDataset):
     _splits_map = {"train": "trnid", "val": "valid", "test": "tstid"}
 
     def __init__(
-        self,
-        root: str,
-        split: str = "train",
-        transform: Optional[Callable] = None,
-        target_transform: Optional[Callable] = None,
-        download: bool = False,
+            self,
+            root: str,
+            split: str = "train",
+            transform: Optional[Callable] = None,
+            target_transform: Optional[Callable] = None,
+            download: bool = False,
     ) -> None:
         super().__init__(root, transform=transform, target_transform=target_transform)
         self._split = verify_str_arg(split, "split", ("train", "val", "test"))
@@ -87,7 +91,7 @@ class Flowers102(VisionDataset):
             image_file = self._images_folder / f"image_{image_id:05d}.jpg"
             self._image_files.append(image_file)
             image = PIL.Image.open(image_file).convert("RGB")
-            image = np.array(image.resize((32,32)))
+            image = np.array(image.resize((32, 32)))
             # print(image.shape)
             self.data.append(image)
 
@@ -112,7 +116,6 @@ class Flowers102(VisionDataset):
             label = self.target_transform(label)
 
         return image, label
-
 
     def extra_repr(self) -> str:
         return f"split={self._split}"
@@ -139,7 +142,9 @@ class Flowers102(VisionDataset):
             filename, md5 = self._file_dict[id]
             download_url(self._download_url_prefix + filename, str(self._base_folder), md5=md5)
 
+
 CSV = namedtuple("CSV", ["header", "index", "data"])
+
 
 class CelebA(VisionDataset):
     """`Large-scale CelebFaces Attributes (CelebA) Dataset <http://mmlab.ie.cuhk.edu.hk/projects/CelebA.html>`_ Dataset.
@@ -186,15 +191,15 @@ class CelebA(VisionDataset):
     ]
 
     def __init__(
-        self,
-        root: str,
-        split: str = "train",
-        target_type: Union[List[str], str] = "attr",
-        transform: Optional[Callable] = None,
-        target_transform: Optional[Callable] = None,
-        balance: bool = True,
-        download: bool = False,
-        max_imgNum: int = 10000,
+            self,
+            root: str,
+            split: str = "train",
+            target_type: Union[List[str], str] = "attr",
+            transform: Optional[Callable] = None,
+            target_transform: Optional[Callable] = None,
+            balance: bool = True,
+            download: bool = False,
+            max_imgNum: int = 10000,
     ) -> None:
 
         super().__init__(root, transform=transform, target_transform=target_transform)
@@ -271,7 +276,7 @@ class CelebA(VisionDataset):
         # print(f"Wanted Labels: {self.attr_names}")
 
         class_list = np.array(self.targets, dtype=int)
-        for i in range(2**self.num_attrs):
+        for i in range(2 ** self.num_attrs):
             temp = class_list == i
             print(f" Num Images for Class {i}: {sum(temp)}")
         print("---")
@@ -282,12 +287,12 @@ class CelebA(VisionDataset):
         for name in filename_bar:
             X = PIL.Image.open(os.path.join(self.root, "img_align_celeba", name))
             # center crop with PIL
-            width, height = X.size   # Get dimensions
+            width, height = X.size  # Get dimensions
             new_width, new_height = 158, 158
-            left = (width - new_width)/2
-            top = (height - new_height)/2
-            right = (width + new_width)/2
-            bottom = (height + new_height)/2
+            left = (width - new_width) / 2
+            top = (height - new_height) / 2
+            right = (width + new_width) / 2
+            bottom = (height + new_height) / 2
             X = X.crop((left, top, right, bottom))
 
             X = X.resize((128, 128))
@@ -296,18 +301,17 @@ class CelebA(VisionDataset):
         self.data = np.array(self.data)
         # print("datashape", len(targets_), self.data.shape, len(self.targets))
 
-
     def _load_csv(
-        self,
-        filename: str,
-        header: Optional[int] = None,
+            self,
+            filename: str,
+            header: Optional[int] = None,
     ) -> CSV:
         with open(os.path.join(self.root, "Anno", filename)) as csv_file:
             data = list(csv.reader(csv_file, delimiter=" ", skipinitialspace=True))
 
         if header is not None:
             headers = data[header]
-            data = data[header + 1 :]
+            data = data[header + 1:]
         else:
             headers = []
 
@@ -349,14 +353,135 @@ class CelebA(VisionDataset):
         if self.transform is not None:
             # TODO Attention! the transform function here is predefined in train_func and by defaut size of img is 32
             x = self.transform(x)
-        
+
         if self.target_transform is not None:
             target = self.target_transform(target)
 
         return x, target
 
     def __len__(self) -> int:
-        return len(self.filename) # lens of the max index of the images
+        return len(self.filename)  # lens of the max index of the images
+
+    def extra_repr(self) -> str:
+        lines = ["Target type: {target_type}", "Split: {split}"]
+        return "\n".join(lines).format(**self.__dict__)
+
+
+class Compare(VisionDataset):
+    """`Large-scale CelebFaces Attributes (CelebA) Dataset <http://mmlab.ie.cuhk.edu.hk/projects/CelebA.html>`_ Dataset.
+
+    Args:
+        root (string): Root directory where images are downloaded to.
+        split (string): One of {'train', 'valid', 'test', 'all'}.
+            Accordingly dataset is selected.
+        target_type (string or list, optional): Type of target to use, ``attr``, ``identity``, ``bbox``,
+            or ``landmarks``. Can also be a list to output a tuple with all specified target types.
+            The targets represent:
+
+                - ``attr`` (np.array shape=(40,) dtype=int): binary (0, 1) labels for attributes
+                - ``identity`` (int): label for each person (data points with the same identity are the same person)
+                - ``bbox`` (np.array shape=(4,) dtype=int): bounding box (x, y, width, height)
+                - ``landmarks`` (np.array shape=(10,) dtype=int): landmark points (lefteye_x, lefteye_y, righteye_x,
+                  righteye_y, nose_x, nose_y, leftmouth_x, leftmouth_y, rightmouth_x, rightmouth_y)
+
+            Defaults to ``attr``. If empty, ``None`` will be returned as target.
+
+        transform (callable, optional): A function/transform that  takes in an PIL image
+            and returns a transformed version. E.g, ``transforms.PILToTensor``
+        target_transform (callable, optional): A function/transform that takes in the
+            target and transforms it.
+        download (bool, optional): If true, downloads the dataset from the internet and
+            puts it in root directory. If dataset is already downloaded, it is not
+            downloaded again.
+    """
+
+    # TODO Attention, the output of the dataset contains all the images and is on CPU!!
+    # There currently does not appear to be a easy way to extract 7z in python (without introducing additional
+    # dependencies). The "in-the-wild" (not aligned+cropped) images are only in 7z, so they are not available
+    # right now.
+
+    def __init__(
+            self,
+            root: str = None,
+            target_type: Union[List[str], str] = "attr",
+            transform: Optional[Callable] = None,
+            target_transform: Optional[Callable] = None,
+            max_imgnum: int = 1000
+    ):
+
+        super().__init__(root, transform=transform, target_transform=target_transform)
+        self.max_imgnum = max_imgnum
+
+        if isinstance(target_type, list):
+            self.target_type = target_type
+        else:
+            self.target_type = [target_type]
+
+        if not self.target_type and self.target_transform is not None:
+            raise RuntimeError("target_transform is specified but target_type is empty")
+
+        pickle_file = os.path.join(root, "res.pkl")
+        file_list, target = self._load_pkl(pickle_file, max_imgnum)
+
+        self.targets = target
+        self.file_list = file_list
+
+        # generate data
+        self.data: Any = []
+        filename_bar = tqdm(self.file_list, "loading images from data")
+        for name in filename_bar:
+            X = PIL.Image.open(os.path.join(self.root, "img", name))
+            # center crop with PIL
+            width, height = X.size  # Get dimensions
+            new_width, new_height = 158, 158
+            left = (width - new_width) / 2
+            top = (height - new_height) / 2
+            right = (width + new_width) / 2
+            bottom = (height + new_height) / 2
+            X = X.crop((left, top, right, bottom))
+
+            X = X.resize((128, 128))
+            X = np.array(X)
+            self.data.append(X)
+        self.data = np.array(self.data)
+
+    def _load_pkl(
+            self,
+            pickle_file: str,
+            maxnum: int
+    ):
+        file_list = []
+        pred_labels = []
+        with open(pickle_file, 'rb') as pkl_file:
+            data = pickle.load(pkl_file)
+            random.shuffle(data)
+            num_class = data[0]["num_classes"]
+            for item in tqdm(data[: maxnum]):
+                file_list.append(item["img_path"])
+                pred_class = 0
+                pred_ = item["pred_label"].detach().cpu().numpy()
+                for class_ in pred_:
+                    pred_class += 2 ** class_
+                pred_labels.append(pred_class)
+
+        return file_list, pred_labels
+
+    def __getitem__(self, index: int) -> Tuple[Any, Any]:
+
+        x, target = self.data[index], self.targets[index]
+        x = PIL.Image.fromarray(x)
+
+        if self.transform is not None:
+            # TODO Attention! the transform function here is predefined in train_func and by defaut size of img is 32
+            x = self.transform(x)
+
+        if self.target_transform is not None:
+            target = self.target_transform(target)
+
+        return x, target
+
+    def __len__(self) -> int:
+        return len(self.file_list)  # lens of the max index of the images
 
     def extra_repr(self) -> str:
         lines = ["Target type: {target_type}", "Split: {split}"]

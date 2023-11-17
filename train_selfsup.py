@@ -1,5 +1,6 @@
 import argparse
 import os
+from tqdm import tqdm
 
 import numpy as np
 import torch.optim as optim
@@ -69,7 +70,8 @@ if args.pretrain_dir is not None:
 else:
     net = tf.load_architectures(args.arch, args.fd)
 transforms = tf.load_transforms(args.transform)
-trainset = tf.load_trainset(args.data, path=args.data_dir)
+transforms = tf.load_transforms(args.transform)
+trainset = tf.load_trainset(args.data, transforms, path=args.data_dir, max_imgNum=10000)
 # trainloader = AugmentLoader(trainset,
 #                             transforms=transforms,
 #                             sampler=args.sampler,
@@ -83,7 +85,8 @@ scheduler = lr_scheduler.MultiStepLR(optimizer, [30, 60], gamma=0.1)
 utils.save_params(model_dir, vars(args))
 
 ## Training
-for epoch in range(args.epo):
+epoche_bar = tqdm(range(args.epo))
+for epoch in epoche_bar:
     # for step, (batch_imgs, _, batch_idx) in enumerate(trainloader):
     for step, (batch_imgs, batch_idx) in enumerate(trainloader):
         # print(batch_imgs.type())
