@@ -1,2 +1,6 @@
- python train_sup.py --arch resnet18 --data celeba --fd 128 --epo 100 --bs 512 --eps 0.5 --gam1 1 --gam2 1 --lr 0.01 --lcr 0.0 --tail _blackH_OpenM_WearLip --data_dir /home/alpha/Desktop/data/data/
+ python train_sup.py --arch resnet18celebA --data celeba --fd 128 --epo 100 --bs 512 --eps 0.5 --gam1 1 --gam2 1 --lr 0.01 \
+ --lcr 0.0 --tail _blackH_OpenM_WearLip --data_dir /home/alpha/Desktop/data/data/ --transform celeba
 python plot.py --model saved_models/sup_resnet18+128_flower102_epo500_bs256_lr0.01_mom0.9_wd0.0005_gam11.0_gam21.0_eps0.5_lcr0.0/ --nearcomp_class
+python train_selfsup.py --arch resnet18celebA --data celeba --fd 128 --epo 100 --bs 128 --eps 0.5 --gam1 1 --gam2 1 \
+--lr 0.01 --tail _blackH_OpenM_WearLip --data_dir /home/alpha/Desktop/data/data/ --transform celeba
+python compare.py --model saved_models/sup_resnet18celebA+128_celeba_epo100_bs512_lr0.01_mom0.9_wd0.0005_gam11.0_gam21.0_eps0.5_lcr0.0_blackH_OpenM_WearLip_res34/ --before /home/alpha/Desktop/before --after /home/alpha/Desktop/after

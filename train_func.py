@@ -118,7 +118,6 @@ def load_trainset(name, transform=None, train=True, path="/home/alpha/Desktop/da
 
     elif _name == "celeba":
         from CustomDataset import CelebA
-        # from Dataset_attrs1 import CelebA
         if "max_imgNum" in kwargs:
             trainset = CelebA(root=os.path.join(path, "celebA"), split='train', transform=transform, \
                               download=False, target_type="attr", max_imgNum=kwargs["max_imgNum"])
@@ -128,6 +127,16 @@ def load_trainset(name, transform=None, train=True, path="/home/alpha/Desktop/da
         trainset.num_classes = 8
 
         return trainset
+
+    elif _name == "compare":
+        assert "file_path" in kwargs
+
+        from CustomDataset import Compare
+        if "max_imgNum" in kwargs:
+            trainset = Compare(kwargs["file_path"], transform=transform, max_imgnum=kwargs["max_imgNum"])
+        else:
+            trainset = Compare(kwargs["file_path"], transform=transform)
+        trainset.num_classes = 8
 
     elif _name == "stl10":
         trainset = torchvision.datasets.STL10(root=os.path.join(path, "stl10"), split='train', 
