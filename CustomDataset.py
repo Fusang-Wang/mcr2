@@ -462,7 +462,8 @@ class Compare(VisionDataset):
                 pred_ = item["pred_label"].detach().cpu().numpy()
                 for class_ in pred_:
                     pred_class += 2 ** class_
-                pred_labels.append(pred_class)
+                # pred_labels.append(pred_class)
+                pred_labels.append(pred_class % 4) #only the first two labels interests us
 
         return file_list, pred_labels
 

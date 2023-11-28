@@ -136,7 +136,7 @@ def load_trainset(name, transform=None, train=True, path="/home/alpha/Desktop/da
             trainset = Compare(kwargs["file_path"], transform=transform, max_imgnum=kwargs["max_imgNum"])
         else:
             trainset = Compare(kwargs["file_path"], transform=transform)
-        trainset.num_classes = 8
+        trainset.num_classes = 4
 
     elif _name == "stl10":
         trainset = torchvision.datasets.STL10(root=os.path.join(path, "stl10"), split='train', 

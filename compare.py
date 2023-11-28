@@ -58,7 +58,8 @@ def align_batch(batch_vector1, batch_vector2):
 
     return aligned_batch_vector1, aligned_batch_vector2
 
-def compare_feature(features_before, labels_before, features_after, labels_after, num_classes=8):
+def compare_feature(features_before, labels_before, features_after, labels_after, num_classes=4):
+    num_sample = len(features_before)
 
     features_sort_before, labels_sort_before = utils.sort_dataset(features_before.numpy(), labels_before.numpy(),
                             num_classes=num_classes, stack=False)
@@ -68,6 +69,8 @@ def compare_feature(features_before, labels_before, features_after, labels_after
 
     outer_scores = []
     inner_scores = []
+    before_distr = []
+    after_distr = []
 
     for class_feature_before, class_feature_after in zip(features_sort_before, features_sort_after):
         # inner class score
@@ -77,10 +80,16 @@ def compare_feature(features_before, labels_before, features_after, labels_after
         inner_scores.append(np.log(numpy.prod(s_a[:10])/numpy.prod(s_b[:10])))
 
         # between-class score
-        aug = 1.0
-        minor = 1.0
+        class_num_before = len(class_feature_before)
+        class_num_after = len(class_feature_after)
+        aug = 2.0 * (class_num_after > class_num_before) - 1.0
+        minor = 2.0 * (class_num_before < num_sample/num_classes) - 1.0
+        before_distr.append(class_num_before/num_sample)
+        after_distr.append(class_num_after/num_sample)
+
         class_num_samples = max(len(class_feature_before), len(class_feature_after))
-        aligned_class_feature_before, aligned_class_feature_after = align_batch(class_feature_before, class_feature_after)
+        aligned_class_feature_before, aligned_class_feature_after = \
+            align_batch(class_feature_before, class_feature_after)
         cost_matrix = get_cost_matrix(aligned_class_feature_before, aligned_class_feature_after)
         a = numpy.ones(class_num_samples) / class_num_samples
         b = numpy.ones(class_num_samples) / class_num_samples
@@ -88,7 +97,7 @@ def compare_feature(features_before, labels_before, features_after, labels_after
 
         outer_scores.append(minor*aug*Wd)
 
-    return inner_scores, outer_scores
+    return inner_scores, outer_scores, before_distr, after_distr
 
 
 def tsne_vis(feature_origin, pre_labels_origin, feature_before, pre_labels_before, feature_after, pre_labels_after, \
@@ -112,7 +121,7 @@ def tsne_vis(feature_origin, pre_labels_origin, feature_before, pre_labels_befor
 
     tsne_list = [tsne_res_org, tsne_res_before, tsne_res_after, tsne_res_before_mix, tsne_res_after_mix]
     pre_labels_list = [pre_labels_origin, pre_labels_before, pre_labels_after, pre_labels_before_mix, pre_labels_after_mix]
-    classes = [i for i in range(8)]
+    classes = [i for i in range(4)]
     name_list = ["tsne_res_org", "tsne_res_before", "tsne_res_after", "tsne_res_before_mix", "tsne_res_after_mix"]
 
     for i, (tsne_res, pre_labels) in enumerate(zip(tsne_list, pre_labels_list)):
@@ -149,16 +158,27 @@ if __name__ == "__main__":
     trainloader_after = DataLoader(after, batch_size=64, num_workers=4)
     features_after, labels_after = tf.get_features(net, trainloader_after)
 
-    inner_score_org, outer_score_org = compare_feature(features_origin, labels_origin, features_before, labels_before,
+    inner_score_org, outer_score_org, distr_org, distr_before = compare_feature(features_origin, labels_origin, features_before, labels_before,
                                   num_classes=before.num_classes)
 
-    inner_score_sty, outer_score_sty = compare_feature(features_origin, labels_origin, features_after, labels_after, \
+    inner_score_sty, outer_score_sty, distr_org, distr_after = compare_feature(features_origin, labels_origin, features_after, labels_after, \
                                   num_classes=before.num_classes)
 
-    for i in range(8):
-        print(f"class{i} | inner_org: {inner_score_org[i]} | inner_sty: {inner_score_sty[i]}")
-        print(f"class{i} | inter_org: {outer_score_org[i]} | inter_sty: {outer_score_sty[i]}")
+    import csv
 
-    tsne_vis(features_origin, labels_origin, features_before, labels_before, features_after, labels_after, "before.png")
+    file_name = "feature_compare_res.csv"
+    with open(file_name, 'w', newline='') as csv_file:
+        csv_writer = csv.writer(csv_file)
+        names = ["class", "inner_org", "inner_sty", "inter_org", "inter_sty", "distr_org", "distr_before", "distr_after"]
+        csv_writer.writerow(names),
+        for i in range(before.num_classes):
+            data = [i, inner_score_org[i], inner_score_sty[i], outer_score_org[i], outer_score_sty[i], \
+                    distr_org[i], distr_before[i], distr_after[i]]
+            csv_writer.writerow(data)
+            print(f"class{i} | inner_org: {inner_score_org[i]} | inner_sty: {inner_score_sty[i]}")
+            print(f"class{i} | inter_org: {outer_score_org[i]} | inter_sty: {outer_score_sty[i]}")
+            print(f"class{i} | before_distr: {distr_before[i]} | after_distr: {distr_after[i]}")
+
+    tsne_vis(features_origin, labels_origin, features_before, labels_before, features_after, labels_after)
     # tsne_vis(features_after, labels_after, "after.png")
 
